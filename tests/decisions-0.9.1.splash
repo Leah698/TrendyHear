@@ -1,4 +1,4 @@
-fn run_090_checks(){
+fn run_091_checks(){
  fs.mkdir(DATA)
  let checks={} let examples=[]
  let malformed_source={name:"Malformed fixture",url:"https://hackalendar.com/api/events",prefix:"https://hackalendar.com/",format:"hackalendar",quota:2}
@@ -15,7 +15,7 @@ checks.latest_advisor_reply_visible=visible.len()==2 && visible[1].text=="最新
  state.goal.personal_context=ctx
  let body="Demo Hackathon. Registration is open. Individuals welcome. Online event. Submit a runnable Demo. Registration deadline 2030-10-15."
  let fact={identity_quote:"Demo Hackathon",registration:{value:"open",quote:"Registration is open"},participation:{value:"individual",quote:"Individuals welcome"},format:{value:"online",quote:"Online event"},work_requirements:{value:"Submit a runnable Demo",quote:"Submit a runnable Demo"},project_policy:{value:"unknown",quote:""},registration_deadline:{value:"2030-10-15",quote:"Registration deadline 2030-10-15"},submission_deadline:{value:"unknown",quote:""}}
- let o={title:"演示活动 · Demo Hackathon",source:"演示数据",category:"比赛",link:"https://fossunited.org/events/fixture-090",summary_source:body,evidence:"Demo Hackathon",reason:"用于测试个人判断与日程。",calendar_kind:"deadline",calendar_start_date:"2030-10-15",calendar_end_date:"",calendar_evidence:"Registration deadline 2030-10-15",location:"Online",deadline:"Registration deadline 2030-10-15",event_time:"2030-10-15",saved:false,published:time_now(),goal_revision:8,run_id:1,calendar_event_id:""}
+ let o={title:"演示活动 · Demo Hackathon",source:"演示数据",category:"比赛",link:"https://fossunited.org/events/fixture-091",summary_source:body,evidence:"Demo Hackathon",reason:"用于测试个人判断与日程。",calendar_kind:"deadline",calendar_start_date:"2030-10-15",calendar_end_date:"",calendar_evidence:"Registration deadline 2030-10-15",location:"Online",deadline:"Registration deadline 2030-10-15",event_time:"2030-10-15",saved:false,published:time_now(),goal_revision:8,run_id:1,calendar_event_id:""}
  o.official=checked_facts(fact,body,o)
  checks.partial_official_accepted=current_official(o)
  checks.missing_rules_unknown=fact_of(o,"project_policy").status=="unknown"
@@ -28,7 +28,7 @@ checks.latest_advisor_reply_visible=visible.len()==2 && visible[1].text=="最新
  checks.date_missing_year_rejected=!date_in_evidence("2030-10-15","October 15")
  checks.date_english_verified=date_in_evidence("2030-10-15","15 October 2030")
  checks.date_chinese_verified=date_in_evidence("2030-10-15","2030年10月15日")
- let candidate=copy(o) candidate.link="https://hackalendar.com/e/fixture-090" candidate=unverified_opportunity(candidate)
+ let candidate=copy(o) candidate.link="https://hackalendar.com/e/fixture-091" candidate=unverified_opportunity(candidate)
  checks.aggregator_preserved_unverified=opportunity_current(candidate) && candidate.official.status=="unverified"
  checks.candidate_name_unverified=fact_of(candidate,"event_name").status=="unverified"
  checks.unverified_cannot_schedule=!calendar_eligible(candidate)
@@ -41,10 +41,10 @@ checks.latest_advisor_reply_visible=visible.len()==2 && visible[1].text=="最新
  let old=copy(o) old.official.schema=1
  checks.old_evidence_requires_refresh=!opportunity_current(old)
  checks.spoof_host_rejected=!official_url("https://fossunited.org.evil.test/a")
- checks.hackalendar_event_supported=official_url("https://hackalendar.com/e/fixture-090")
- checks.hackalendar_spoof_rejected=!official_url("https://hackalendar.com.evil.test/e/fixture-090")
- checks.conference_api_supported=official_url("https://conferencely.org/api/v1/public/conferences/fixture-090")
- checks.grant_page_supported=official_url("https://grants.watch/programs/fixture-090")
+ checks.hackalendar_event_supported=official_url("https://hackalendar.com/e/fixture-091")
+ checks.hackalendar_spoof_rejected=!official_url("https://hackalendar.com.evil.test/e/fixture-091")
+ checks.conference_api_supported=official_url("https://conferencely.org/api/v1/public/conferences/fixture-091")
+ checks.grant_page_supported=official_url("https://grants.watch/programs/fixture-091")
  checks.job_page_supported=official_url("https://jobicy.com/jobs/123-fixture")
  let a={index:0,decision:"verify_first",goal_relevance:"积累应用开发实践经验",personal_context_used:[ctx[0].value],personal_advantage:"已有原型可能降低准备成本",main_constraint:"尚未确认项目复用规则",constraint_status:"unknown",constraint_evidence:"",unknown_fields:["project_policy"],analysis:"你已有AI应用原型，可能减少从零准备的工作。但活动是否允许复用项目尚未确认，不能把现有功能直接当成可提交的作品。",next_action:"先核对官方项目复用规则",evidence_refs:["personal.current_stage","official.work_requirements"]}
  let rows=checked_personal_advice({items:[a]},[o])
@@ -117,9 +117,9 @@ checks.latest_advisor_reply_visible=visible.len()==2 && visible[1].text=="最新
  checks.history_read_deduplicates=state.history.len()==1 && state.articles[0].read
  favorite_news(0) checks.news_favorite_works=state.favorites.len()==1
  reduce(0) checks.news_feedback_works=state.feedback.len()>0
- fs.write("checks-090.json",checks.to_json()) fs.write("examples-090.json",examples.to_json())
- state.goal.personal_context=ctx state.opportunities=[o] state.advice=rows state.advice_format=4 state.advice_status="ready" state.opportunity_status="ready" state.opportunity_detail="演示数据：用于 v0.9.0 界面验收，非真实活动。"
+ fs.write("checks-091.json",checks.to_json()) fs.write("examples-091.json",examples.to_json())
+ state.goal.personal_context=ctx state.opportunities=[o] state.advice=rows state.advice_format=4 state.advice_status="ready" state.opportunity_status="ready" state.opportunity_detail="演示数据：用于 v0.9.1 界面验收，非真实活动。"
  state.agent_messages=[{role:"user",text:"我比较关注科技与文化领域，最近想重点学习AI Agent的知识"}]
  screen="opportunities" message="" show()
 }
-start_timeout(0.3,|| run_090_checks())
+start_timeout(0.3,|| run_091_checks())

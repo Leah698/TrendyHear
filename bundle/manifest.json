@@ -30,7 +30,7 @@
   },
   "id": "skystream.trendyhear",
   "integrity": {
-    "bundle_blake3": "def46a728d30faf4d72721fda8e81757385985991dd8b262ea4dceb293d0ad8d"
+    "bundle_blake3": "57ac733b49a1cde51b3392f0e4a4a9febc2c892a892cba97e73557138669c618"
   },
   "name": "TrendyHear",
   "network": {
@@ -55,5 +55,5 @@
     "agent_workspace": "account",
     "max_bytes": null
   },
-  "version": "0.9.0"
+  "version": "0.9.1"
 }

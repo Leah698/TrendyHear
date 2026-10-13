@@ -2,7 +2,7 @@
 
 ## 中文
 
-TrendyHear v0.9.0 在应用层整理了一套可复用的 OctoScript 视觉组件，不要求修改 OctoSense Shell。组件直接定义在 `bundle/main.splash`，图标位于 `bundle/assets/icons/`。
+TrendyHear v0.9.1 在应用层整理了一套可复用的 OctoScript 视觉组件，不要求修改 OctoSense Shell。组件直接定义在 `bundle/main.splash`，图标位于 `bundle/assets/icons/`。
 
 - `Primary`：46px 高的主行动按钮，深绿底、白字、12px 圆角。
 - `Secondary`：与主按钮等高的次行动按钮，白底、浅绿描边。
@@ -14,7 +14,7 @@ TrendyHear v0.9.0 在应用层整理了一套可复用的 OctoScript 视觉组�
 
 ## English
 
-TrendyHear v0.9.0 includes a reusable, app-local OctoScript visual kit. It requires no OctoSense Shell modification. Components live in `bundle/main.splash`; icons live in `bundle/assets/icons/`.
+TrendyHear v0.9.1 includes a reusable, app-local OctoScript visual kit. It requires no OctoSense Shell modification. Components live in `bundle/main.splash`; icons live in `bundle/assets/icons/`.
 
 - `Primary`: 46px primary action, deep green fill, white label, 12px radius.
 - `Secondary`: matching secondary action with a white surface and pale green border.

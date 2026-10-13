@@ -2,7 +2,7 @@
 
 **Personal Motion Agent · Follow what you care about. Understand today. Turn important information into meaningful action.**
 
-[简体中文](README.md) · Final-round submission **v0.9.0** · SkyStream · [Apache-2.0](LICENSE)
+[简体中文](README.md) · Final-round submission **v0.9.1** · SkyStream · [Apache-2.0](LICENSE)
 
 TrendyHear is a news-driven personal growth agentic app built for OctoSense. It selects public news and action opportunities related to a user's goals. Its advisor, Xiao Jiao, then combines source evidence with confirmed personal context to help answer two questions: **What does this mean for me? What is the most useful thing I can do next?**
 
@@ -14,7 +14,7 @@ The name Xiao Jiao plays on the similar sounds of `蕉`, banana, and `焦` in `�
 
 ## Release status
 
-v0.9.0 is the frozen final-round submission version. Development and local installation target OctoSense `desktop-v0.1.0-rc.6-3-g243ee8c8`. This repository contains the app source, Apache-2.0 license, startup instructions, key screenshots, product brief, source and limitation notes, reproducible results, and failure-state records. The contestant will add the demo video separately.
+v0.9.1 is the frozen final-round submission version. Development and local installation target OctoSense `desktop-v0.1.0-rc.6-3-g243ee8c8`. This repository contains the app source, Apache-2.0 license, startup instructions, key screenshots, product brief, source and limitation notes, reproducible results, and failure-state records. The contestant will add the demo video separately.
 
 The local package uses an existing test trust chain only for isolated on-device review. It is neither a public App Hub release nor proof of official acceptance. Live news, model output, real-time opportunity sources and final UI behavior must still be reviewed manually in the fixed package.
 
@@ -24,7 +24,7 @@ During the first round, TrendyHear was a news aggregation tool that helped users
 
 **If information is only read and then forgotten, how much real growth can more news create?**
 
-Version 0.9.0 therefore evolves TrendyHear into a **Personal Motion Agent** guided by personal growth goals. Users can tell TrendyHear what they care about and what they hope to achieve. TrendyHear uses that intent to select news, create a daily brief, and look for action opportunities related to the confirmed goal.
+Version 0.9.1 therefore evolves TrendyHear into a **Personal Motion Agent** guided by personal growth goals. Users can tell TrendyHear what they care about and what they hope to achieve. TrendyHear uses that intent to select news, create a daily brief, and look for action opportunities related to the confirmed goal.
 
 For example, when a user wants to learn AI Agent development, TrendyHear can surface relevant trends, look for developer events, competitions or research projects, verify participation requirements and important dates, and then propose one concrete next step based on confirmed personal context.
 
@@ -59,9 +59,13 @@ flowchart TD
 7. **Support the decision.** Personalized analysis appears directly on each opportunity card. News and opportunities are linked only when source facts, event requirements or the user's goal provide a clear basis. The user can verify further, save, dismiss or prepare to act.
 8. **Execute and verify the result.** For an opportunity with complete date evidence, the Action Layer writes to the TrendyHear Calendar only after user confirmation, then deduplicates, saves and reads the item back. If evidence is incomplete, confirmation is absent or saving fails, the workflow remains in a verification or failure state and does not produce a success receipt.
 
-The workflow preserves context through goal revisions, source evidence, task state, user confirmations and execution receipts. Each structured result becomes a constrained input to the next step, allowing information discovery to continue into value judgment and action. Version 0.9.0 uses one outer TrendyHear Advisor to coordinate two internal workflows that share the Goal Profile, evidence state and Action Layer.
+The workflow preserves context through goal revisions, source evidence, task state, user confirmations and execution receipts. Each structured result becomes a constrained input to the next step, allowing information discovery to continue into value judgment and action. Version 0.9.1 uses one outer TrendyHear Advisor to coordinate two internal workflows that share the Goal Profile, evidence state and Action Layer.
 
 News and Opportunity remain separate workflows with one shared confirmed goal. TrendyHear does not connect news and events merely because their topics look similar; a connection requires support from source facts, event requirements or the user's goal.
+
+## Demo video
+
+[TrendyHear Test Video](https://pub-01084e2eb75342dbb1a3d855d5047a1d.r2.dev/TrendyHear_Test%20Video.mp4)
 
 ## Core capabilities
 
@@ -86,7 +90,7 @@ The Today page selects up to eight relevant or adjacent articles from public RSS
 
 ### 3. Opportunity verification
 
-The Opportunity Workflow first reads multiple event directories and official pages concurrently, then merges candidate buckets in round-robin order so that the fastest source cannot occupy every result. Version 0.9.0 adds a per-source timeout, an overall collection timeout, parser isolation and visible progress. One malformed source can no longer leave the entire page permanently searching.
+The Opportunity Workflow first reads multiple event directories and official pages concurrently, then merges candidate buckets in round-robin order so that the fastest source cannot occupy every result. Version 0.9.1 adds a per-source timeout, an overall collection timeout, parser isolation and visible progress. One malformed source can no longer leave the entire page permanently searching.
 
 Each opportunity field keeps its own evidence state:
 
@@ -179,7 +183,7 @@ Sources may fail, rate-limit, change format, overlap or provide incomplete cover
 After local signing, the manual-review package is located at:
 
 ```text
-build/install-0.9.0-local/OctoSense-Test-0.9.0.app
+build/install-0.9.1-local/OctoSense-Test-0.9.1.app
 ```
 
 Open that app and install or open TrendyHear from its App Hub. The test directory is isolated from the official OctoSense directory, does not modify the official installation and does not upload the app. Public installation must follow the App Hub release and trust process.
@@ -200,7 +204,7 @@ Native isolated checks:
 python3 tests/run_native_checks.py --octo /path/to/OctoScript-App-Design-Flow/tools/octo
 ```
 
-These checks call production validation and storage functions with constructed data. They do not request a real model and cannot replace manual acceptance. See the [v0.9.0 validation record](docs/VALIDATION-0.9.0.md) and [reproduction, verifiable results and failure states](submission/操作与结果证据/复现与核对.md).
+These checks call production validation and storage functions with constructed data. They do not request a real model and cannot replace manual acceptance. See the [v0.9.1 validation record](docs/VALIDATION-0.9.1.md) and [reproduction, verifiable results and failure states](submission/操作与结果证据/复现与核对.md).
 
 ## Privacy and permissions
 
@@ -219,9 +223,9 @@ See [PRIVACY.md](PRIVACY.md) for the complete data-handling statement.
 - Eligibility, status and dates from aggregator directories still require verification against an official page.
 - Background fetching and reminders were attempted, but the current OctoSense host does not expose verifiable background wake and notification permission to the app. The app does not run while closed and checks missed work under the current rules when reopened.
 - After several rounds of UI and UX testing and adjustment, some details remain below the intended quality. For example, news-card spacing can still feel too loose at some window sizes; information density and cross-size layout require more work.
-- Speech synthesis for the daily brief was implemented and tested, but generation took a long time and produced no playable result. Voice reading is therefore not a v0.9.0 release capability, and the attempt is preserved as a failure-state record.
+- Speech synthesis for the daily brief was implemented and tested, but generation took a long time and produced no playable result. Voice reading is therefore not a v0.9.1 release capability, and the attempt is preserved as a failure-state record.
 - Ambiguous abbreviated date ranges cannot be written to the TrendyHear Calendar.
-- Adaptive navigation between desktop and Android remains limited. The earlier drawer could not switch reliably between both window forms, so v0.9.0 uses one bottom navigation and preserves the drawer patch only as a failed experiment.
+- Adaptive navigation between desktop and Android remains limited. The earlier drawer could not switch reliably between both window forms, so v0.9.1 uses one bottom navigation and preserves the drawer patch only as a failed experiment.
 - Cross-app creation, deduplication and readback through OctoSense Calendar were attempted but could not be validated reliably because of permission and Shell limits. The release path therefore uses the TrendyHear Calendar; the system Calendar link and design remain experimental records.
 - Android still requires manual acceptance on physical hardware.
 

@@ -1,7 +1,7 @@
 {
   "app_id": "skystream.trendyhear",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "public_repository": "https://github.com/Leah698/TrendyHear",
-  "tag": "v0.9.0",
-  "submission": "Final-round submission candidate for OctoSense rc.6: personalized action opportunities, verified in-app schedule, bounded source discovery, and compact responsive UI"
+  "tag": "v0.9.1",
+  "submission": "Final-round submission v0.9.1 for OctoSense rc.6: fixes the empty-conversation advisor composer while preserving bottom-positioned replies"
 }
