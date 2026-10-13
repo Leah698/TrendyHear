@@ -11,17 +11,18 @@
     },
     "profile": "read-only",
     "token_budget": null,
-    "tools": [
-      "ask_user_question"
-    ]
+    "tools": []
   },
   "capabilities": [
     "storage",
     "net",
+    "images",
     "model",
     "glance",
     "octos.session.open",
-    "octos.turn.start"
+    "octos.turn.start",
+    "octos.turn.interrupt",
+    "runtime"
   ],
   "compute": {
     "instruction_budget": null,
@@ -29,11 +30,7 @@
   },
   "id": "skystream.trendyhear",
   "integrity": {
-    "bundle_blake3": "b23e25ca3ae48e9d57ad376528faa90d13a34818658dedf01714fe10c753ebe4",
-    "signature": {
-      "key_id": "skystream",
-      "value": "5957fde444b8a4c2e896afbe82fb0f1d05ddbe2901bd66afaedd3f163c31892e980ccb0fe3c2a5799bdd6579f2cffd57a03c6d18c28d8685ad0710e0fbe77a0f"
-    }
+    "bundle_blake3": "0ea7dae311c508c7f88922a1659ecf6bcca7c789d04a80114013d68895053567"
   },
   "name": "TrendyHear",
   "network": {
@@ -41,13 +38,22 @@
       "www.chinanews.com.cn",
       "www.ithome.com",
       "www.ifanr.com",
-      "www.solidot.org"
+      "www.solidot.org",
+      "hackalendar.com",
+      "fossunited.org",
+      "conferencely.org",
+      "grants.watch",
+      "jobicy.com"
     ]
   },
+  "requires": [
+    "script-tools-v1",
+    "host-api-v1"
+  ],
   "schema": 1,
   "storage": {
     "agent_workspace": "account",
     "max_bytes": null
   },
-  "version": "0.4.4"
+  "version": "0.9.0"
 }

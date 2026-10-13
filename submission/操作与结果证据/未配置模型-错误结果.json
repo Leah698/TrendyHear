@@ -1,8 +1,0 @@
-{
-  "version": "0.3.0",
-  "context": "全新模型目录，无提供商或密钥",
-  "observed_notice": "no_provider: No AI provider is set up. Add one in AI providers.",
-  "provider_attempts": 0,
-  "observed_via": "原生 widget 快照",
-  "screenshot_captured": false
-}

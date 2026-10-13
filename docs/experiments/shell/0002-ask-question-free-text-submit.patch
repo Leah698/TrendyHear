@@ -1,0 +1,58 @@
+diff --git a/crates/shell/src/system_chat/view.rs b/crates/shell/src/system_chat/view.rs
+index fa8b4088..de43c3e5 100644
+--- a/crates/shell/src/system_chat/view.rs
++++ b/crates/shell/src/system_chat/view.rs
+@@ -306,12 +306,18 @@ pub fn phase_text(phase: &Phase) -> String {
+     }
+ }
+ 
+-/// The composer's button: Send, or Stop while the person's own turn runs.
++/// The composer's button: Answer while an agent question is open, Send while
++/// idle, or Stop while the person's own turn is doing other work.
+ /// `person_running`: the turn the person started (in "Ask <app>" the
+ /// person's lane only; the system agent's lane never turns Send into Stop).
++/// A question parks that turn but still needs the composer as its documented
++/// free-text escape. Treating every running turn as Stop made a typed custom
++/// answer interrupt the very question it was meant to answer.
+ /// The label, what a press does, and whether it is enabled.
+-fn composer_button(person_running: bool, usable: bool, draft: &str) -> (&'static str, Hit, bool) {
+-    if person_running {
++fn composer_button(person_running: bool, question_open: bool, usable: bool, draft: &str) -> (&'static str, Hit, bool) {
++    if question_open {
++        ("Answer", Hit::Send, usable && !draft.trim().is_empty())
++    } else if person_running {
+         ("Stop", Hit::Stop, usable)
+     } else {
+         ("Send", Hit::Send, usable && !draft.trim().is_empty())
+@@ -1523,7 +1529,7 @@ impl ShellSystemChat {
+         let field_y;
+         let usable = source.usable(&model);
+         self.usable = usable;
+-        let (label, hit, enabled) = composer_button(source.person_running(&model), usable, &draft);
++        let (label, hit, enabled) = composer_button(source.person_running(&model), model.open_question().is_some(), usable, &draft);
+         let caret_on = self.typing(cx) && !self.blink_off;
+         let composer = source.composer();
+         {
+@@ -1911,10 +1917,18 @@ mod tests {
+     /// idle, so the button is Send (enabled once there is text), never Stop.
+     #[test]
+     fn send_shows_whenever_the_persons_lane_is_idle() {
+-        assert_eq!(composer_button(false, true, ""), ("Send", Hit::Send, false));
+-        assert_eq!(composer_button(false, true, "why?"), ("Send", Hit::Send, true));
+-        assert_eq!(composer_button(false, false, "why?"), ("Send", Hit::Send, false), "not before the conversation is ready");
+-        assert_eq!(composer_button(true, true, "why?"), ("Stop", Hit::Stop, true), "the person's own turn");
++        assert_eq!(composer_button(false, false, true, ""), ("Send", Hit::Send, false));
++        assert_eq!(composer_button(false, false, true, "why?"), ("Send", Hit::Send, true));
++        assert_eq!(composer_button(false, false, false, "why?"), ("Send", Hit::Send, false), "not before the conversation is ready");
++        assert_eq!(composer_button(true, false, true, "why?"), ("Stop", Hit::Stop, true), "the person's own turn");
++    }
++
++    /// A parked `ask_user_question` turn accepts free text in the composer.
++    /// Its button must answer the question instead of interrupting the turn.
++    #[test]
++    fn an_open_question_turn_submits_the_free_text_answer() {
++        assert_eq!(composer_button(true, true, true, ""), ("Answer", Hit::Send, false));
++        assert_eq!(composer_button(true, true, true, "12:00"), ("Answer", Hit::Send, true));
+     }
+ 
+     /// The device: Send tapped while the soft keyboard was up missed. A

@@ -1,29 +1,32 @@
 {
   "schema": 1,
   "subtitle": "关注所爱，读懂今日。",
-  "description": "点击听见顾问，用自然语言描述阅读兴趣。专属 Agent 逐项澄清并复述理解，确认后由应用展示偏好卡片；再次确认才保存偏好并立即精选八条新闻。新闻先展示，今日简报随后自动填入。支持主题优先级、单次查询、暂停恢复、减少此类推荐和原文链接。",
+  "description": "听见顾问围绕用户确认的兴趣方向整理新闻、核验活动信息，并结合已确认背景给出简短的个人可行性分析。官方依据不足的候选不会展示为机会卡片。用户可生成今日简报，并将有日期证据的机会加入听见日历。",
   "category": "news",
   "keywords": [
     "新闻",
     "简报",
-    "兴趣订阅",
-    "阅读历史"
+    "兴趣方向",
+    "行动机会",
+    "日历",
+    "Agent"
   ],
   "screenshots": [
     "screenshots/01-main.png",
     "screenshots/02-settings.png",
     "screenshots/03-status.png"
   ],
-  "icon": "assets/icon.svg",
+  "icon": "assets/icon.png",
   "platforms": [
-    "macos"
+    "macos",
+    "android"
   ],
   "publisher": {
     "name": "SkyStream",
-    "support": "https://github.com/shaokaiyuan0513-dotcom/TrendyHear/issues",
-    "privacy_policy_url": "https://github.com/shaokaiyuan0513-dotcom/TrendyHear/blob/main/PRIVACY.md"
+    "support": "https://github.com/Leah698/TrendyHear/issues",
+    "privacy_policy_url": "https://github.com/Leah698/TrendyHear/blob/main/PRIVACY.md"
   },
-  "release_notes": "0.4.4：听见顾问升级为混合式 Agent 工作流。应用启动专属 Agent，Agent 用 ask_user_question 渐进收集并复述偏好；用户在 Agent 对话中确认后，应用再发布 AppCard。只有点击卡片确认，偏好才会保存并立即抓取新闻。保留快速设置作为模型不可用时的备用入口。",
+  "release_notes": "0.9.0 复赛提交版：行动机会来源阶段增加总超时、异常隔离和可见进度；听见顾问基于已确认背景与活动证据生成个性化判断；首页恢复稳定的文字简报主流程；提醒按钮选择后折叠，新闻与历史操作区进一步收紧；更新应用图标。",
   "age_rating": "all",
   "license": "Apache-2.0"
 }

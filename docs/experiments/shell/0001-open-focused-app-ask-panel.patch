@@ -1,0 +1,124 @@
+diff --git a/crates/ai-host/src/contained.rs b/crates/ai-host/src/contained.rs
+index 53740c2f..2ae3e4c2 100644
+--- a/crates/ai-host/src/contained.rs
++++ b/crates/ai-host/src/contained.rs
+@@ -50,6 +50,15 @@ use serde_json::Value;
+ use std::collections::{BTreeSet, HashMap, HashSet};
+ use std::sync::{Arc, Condvar, Mutex, MutexGuard, Weak};
+ 
++// Requests from a contained app to reveal the shell-owned Ask <app> surface.
++// The authenticated ServiceCall supplies the app id; the shell still requires
++// that same app to be focused before it opens anything.
++static SHOW_REQUESTS: Mutex<Vec<String>> = Mutex::new(Vec::new());
++
++pub fn take_show_requests() -> Vec<String> {
++    std::mem::take(&mut *SHOW_REQUESTS.lock().unwrap_or_else(|e| e.into_inner()))
++}
++
+ /// The account an app's peer acts for, as the host knows it (ADR 0004
+ /// §11): [`ACCOUNT`] for an app without accounts; for one that keeps
+ /// accounts (Mail's, from its host service) the account it uses, or `None`
+@@ -346,12 +355,16 @@ fn namespace_segment(id: &str) -> bool {
+ pub fn parse(service: &str, args: &Value) -> Result<ContextOp, String> {
+     let allowed: &[&str] = match service {
+         "octos.turn.start" => &["text", "trigger", "from"],
+-        "octos.session.open" | "octos.session.history" | "octos.turn.interrupt" => &[],
++        "octos.session.open" => &["show"],
++        "octos.session.history" | "octos.turn.interrupt" => &[],
+         other => return Err(format!("Unknown Octos service {other}")),
+     };
+     if args.as_object().is_none_or(|o| o.keys().any(|k| !allowed.contains(&k.as_str()))) {
+         return Err(UNSUPPORTED_ARGS.into());
+     }
++    if service == "octos.session.open" && args.get("show").is_some_and(|v| !v.is_boolean()) {
++        return Err(UNSUPPORTED_ARGS.into());
++    }
+     Ok(match service {
+         "octos.turn.start" => ContextOp::TurnFrom {
+             text: args["text"]
+@@ -514,6 +527,9 @@ impl HostService for ContainedOctos {
+             Ok(context) => context,
+             Err(e) => return reply.send(Err(e)),
+         };
++        if call.service == "octos.session.open" && call.args.get("show").and_then(Value::as_bool) == Some(true) {
++            SHOW_REQUESTS.lock().unwrap_or_else(|e| e.into_inner()).push(call.app_id.clone());
++        }
+         let once: Once = Arc::new(Mutex::new(Some(reply)));
+         if let Err(e) = context.call(op, sink(Arc::downgrade(&context), once.clone())) {
+             answer(&once, Err(e));
+diff --git a/crates/ai-host/src/contained/tests.rs b/crates/ai-host/src/contained/tests.rs
+index 82931ea6..94e12cfe 100644
+--- a/crates/ai-host/src/contained/tests.rs
++++ b/crates/ai-host/src/contained/tests.rs
+@@ -281,6 +281,17 @@ fn contained_session_calls_map_to_context_ops() {
+     );
+ }
+ 
++#[test]
++fn contained_open_may_request_the_shell_owned_ask_surface() {
++    let _g = serial();
++    let peers = Peers::new(Turn::Reply(json!({})));
++    register(true, &peers);
++    ask(APP, "octos.session.open", json!({"show": true}), false).expect("open");
++    assert_eq!(take_show_requests(), vec![APP.to_string()]);
++    let err = ask(APP, "octos.session.open", json!({"show": "yes"}), false).unwrap_err();
++    assert_eq!(err, UNSUPPORTED_ARGS);
++}
++
+ #[test]
+ fn contained_rejects_unsupported_arguments() {
+     let _g = serial();
+diff --git a/crates/shell/src/lib.rs b/crates/shell/src/lib.rs
+index cb9cb2f5..8f58d585 100644
+--- a/crates/shell/src/lib.rs
++++ b/crates/shell/src/lib.rs
+@@ -3979,10 +3979,23 @@ impl App {
+     fn approvals_tick(&mut self, cx: &mut Cx) {
+         approvals::tick();
+         peer_link::tick();
++        self.open_requested_app_chat(cx);
+         self.approvals_changed(cx);
+         self.system_chat_changed(cx);
+     }
+ 
++    /// Reveal the shell-owned Ask panel only for the focused app whose
++    /// authenticated contained-service call requested it.
++    fn open_requested_app_chat(&mut self, cx: &mut Cx) {
++        for requested in crate::ai_host::contained::take_show_requests() {
++            let Some(app) = self.focused_agent_app() else { continue };
++            if app.id == requested {
++                app_chat::open_app(app);
++                self.system_chat_changed(cx);
++            }
++        }
++    }
++
+     /// Agents the person turned off since the last tick: their live services
+     /// go now (ADR 0004 §4), whichever way the app is hosted.
+     fn revoke_agents(&mut self) {
+diff --git a/docs/ai-services.md b/docs/ai-services.md
+index f53961c7..ee26a47b 100644
+--- a/docs/ai-services.md
++++ b/docs/ai-services.md
+@@ -136,7 +136,7 @@ An app may call only the `octos.*` names its manifest declares: the Card runner'
+ 
+ | Call | Arguments | Answer (`r.data`) |
+ | --- | --- | --- |
+-| `octos.session.open` | `{}` | `{open: true, model, …}`; `model` names the provider and model, never a key |
++| `octos.session.open` | `{}`, or `{show: true}` from the focused contained app | `{open: true, model, …}`; `model` names the provider and model, never a key; `show` also reveals the shell-owned `Ask <app>` panel |
+ | `octos.session.history` | `{}` | the conversation's `messages`, both lanes merged by time, each with its `lane` and speaker |
+ | `octos.turn.start` | `{text, trigger?, from?}`, `text` up to 32 KiB | `{turn_id, text, speaker, lane}` once the turn ends |
+ | `octos.turn.interrupt` | `{}` | `{interrupted, turns}`: the running turns of both lanes stop |
+diff --git a/docs/ai-services.zh-CN.md b/docs/ai-services.zh-CN.md
+index c0fa6396..af78fa17 100644
+--- a/docs/ai-services.zh-CN.md
++++ b/docs/ai-services.zh-CN.md
+@@ -136,7 +136,7 @@ flowchart TB
+ 
+ | 调用 | 参数 | 返回（`r.data`） |
+ | --- | --- | --- |
+-| `octos.session.open` | `{}` | `{open: true, model, …}`；`model` 给出提供方和模型的名称，从不包含密钥 |
++| `octos.session.open` | `{}`，或当前前台的脚本应用传 `{show: true}` | `{open: true, model, …}`；`model` 给出提供方和模型的名称，从不包含密钥；`show` 同时显示 Shell 自己的 `Ask <app>` 面板 |
+ | `octos.session.history` | `{}` | 对话的 `messages`：两条通道按时间合并，每条消息都带有 `lane` 和说话者 |
+ | `octos.turn.start` | `{text, trigger?, from?}`，`text` 最多 32 KiB | 这一轮结束后返回 `{turn_id, text, speaker, lane}` |
+ | `octos.turn.interrupt` | `{}` | `{interrupted, turns}`：两条通道上正在运行的回合都会停止 |

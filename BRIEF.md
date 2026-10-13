@@ -1,17 +1,27 @@
-# TrendyHear 0.4.4：官方 Shell 混合式 Agent
+# TrendyHear 0.9.0：把重要信息变成可执行的成长机会
 
-主要目标：用户点击“听见顾问”后，由 TrendyHear 自己的 Agent 在一个 `octos.turn.start` 回合内使用 `ask_user_question` 渐进收集阅读偏好。Agent 负责理解和澄清；应用负责 AppCard、校验、持久化、RSS 与新闻任务。
+听见 TrendyHear 是一款新闻聚合驱动的个人成长 Agentic App。用户告诉听见顾问自己关心什么、希望推进什么，应用分别整理新闻与行动机会，再基于用户确认过的个人背景，帮助判断“这件事对我意味着什么，以及我现在应该做什么”。
 
-必填信息为操作类型、1–3 个有序主题，以及长期订阅的每日上海时间或按需阅读。用途和细分范围选填。Agent 每次只问一个缺失项，复述理解后必须再次通过 `ask_user_question` 获得明确确认。应用随后用 `model.complete` 整理严格结构；只有 `confirmed=true` 才发布偏好 AppCard。
+听见顾问的 IP 名字是“小蕉”，取“蕉”与“焦虑”的谐音。它回应信息爆炸带来的成长焦虑：少消费一点无关信息，多找到一条真正值得行动的线索。
 
-用户点击 AppCard 的“确认保存”后，应用自身才把长期偏好写入 `accounts/device/state.json` 并立即执行新闻任务。单次查询只写本次运行偏好，不替换长期订阅。暂停和恢复保留原配置。确认前不改变持久偏好，也不发起 RSS 请求。
+> The future of information is not about consuming more, but about turning the right information into meaningful action.
+>
+> 信息的未来，不在于消费更多的信息，而在于将真正重要的信息转化为有意义的行动。
 
-应用并行抓取 IT之家、爱范儿、Solidot 与中新网四类主机上的七个 RSS 源，保留最近七天候选并轮询合并。模型根据主题语义、优先级、新闻重要性和减少推荐反馈选择最多八条；候选不足时如实少于八条。列表先显示，随后生成 100–200 字简报并填入顶部。
+## 产品主链
 
-“快速设置”保留为模型不可用时的固定 AppCard 备用流程。每日运行、15/30 分钟延后提醒仅在应用保持打开时执行，没有后台唤醒。
+用户先在对话或兴趣页确认关注领域、成长目标和少量可选背景。统一调度器随后运行两条职责独立的工作流：News Workflow 回答“今天有哪些值得了解的变化”，Opportunity Workflow 回答“现在有哪些可以把握的机会”。它们共享同一份已确认目标，但不会为了生成建议而强行关联不相干的新闻和活动。
 
-官方 Shell 的独立 “Ask <app>” 面板使用 `shell-ask` instance，应用无法通过自己的 `octos.session.history` 可靠读取该面板。因此 0.4.4 从应用内“听见顾问”按钮发起 Agent 回合，仍完全使用官方 Shell 和系统问题界面，不自建聊天 UI，也不修改 Shell。
+每条机会先保留来源与日期证据，再尝试核对报名状态、参与方式、资格、作品要求和截止时间。听见顾问结合目标价值、已知个人条件、现实障碍与未知项，直接在卡片里给出一段简短判断和一个具体下一步。未经确认的个人经历、活动规则、资格与日期不会被补写。
 
-权限：`storage`、`net`、`model`、`glance`、`octos.session.open`、`octos.turn.start`。Agent profile 为 `read-only`，唯一工具为 `ask_user_question`。
+## 从判断到行动
 
-验证：Splash 语法、确认边界与 AppCard 写回测试通过；真实 MiniMax-M3 Agent 对话完成渐进提问和最终工具确认；真实结构化模型调用通过；App Hub 检查结果为 `skystream.trendyhear 0.4.4 — PASSED`，当前仅等待发布者重新签名并安装后做最终 Shell 界面验收。
+日期完整且官方依据通过的机会可以由用户确认加入“听见日程”。应用在本地保存、查重并读回同一事件后才显示成功；用户可在机会页右上角打开月份视图查看或删除日程。
+
+听见日程属于 TrendyHear，不访问设备日历，也不代表 OctoSense Calendar 跨应用链路已经跑通。系统 Calendar 的早期尝试、失败原因与待验证补丁保留在 `docs/platform-calendar/`，作为开发过程证据。
+
+## 0.9.0 界面与数据
+
+移动端使用“今日 / 兴趣 / 机会 / 历史”底部导航。今日简报保留头图，新闻卡片采用紧凑排版；兴趣页与历史页使用小蕉插画；听见顾问以居中的底部对话面板呈现，最新回复保持在可见区域。
+
+新闻来自 IT之家、爱范儿、Solidot 和中新网公开 RSS。机会发现用 Hackalendar 覆盖黑客松与开发者活动，用 Symposia、grants.watch 和 Jobicy 分别补充会议、研究资助与远程实习，再结合 FOSS United 和国内研究类官方页面。各来源先独立收集并轮询合并，减少单一类型挤满候选池。来源覆盖仍有限，空结果不表示互联网上没有相关机会。

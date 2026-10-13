@@ -1,0 +1,63 @@
+diff --git a/crates/appstore/src/cardapp.rs b/crates/appstore/src/cardapp.rs
+index 3a1607c..b60073c 100644
+--- a/crates/appstore/src/cardapp.rs
++++ b/crates/appstore/src/cardapp.rs
+@@ -211,6 +211,7 @@ impl AppModule for CardModule {
+         crate::host_api::register_runtime_feature("app_tools.dispatch", 1);
+         octoscript_widgets::design::script_mod(vm);
+         octoscript_widgets::kit::script_mod(vm);
++        octoscript_widgets::drawer::script_mod(vm);
+         script_mod(vm);
+         crate::register_card_vocabulary();
+     }
+diff --git a/crates/appstore/src/lib.rs b/crates/appstore/src/lib.rs
+index cce06ab..2b93fbb 100644
+--- a/crates/appstore/src/lib.rs
++++ b/crates/appstore/src/lib.rs
+@@ -458,9 +458,13 @@ pub(crate) fn register_card_vocabulary() {
+     fn kit(vm: &mut ScriptVm) {
+         octoscript_widgets::kit::script_mod(vm);
+     }
++    fn drawer(vm: &mut ScriptVm) {
++        octoscript_widgets::drawer::script_mod(vm);
++    }
+     makepad_widgets::widget_async::register_splash_isolate_mod(crate::script_tools::script_mod);
+     makepad_widgets::widget_async::register_splash_isolate_mod(design);
+     makepad_widgets::widget_async::register_splash_isolate_mod(kit);
++    makepad_widgets::widget_async::register_splash_isolate_mod(drawer);
+     // `sys`: places, routes, weather and the other live-data helpers a
+     // script app reads, every fetch held to the app's host list, the
+     // device's location to its `location` grant. It also carries
+@@ -639,6 +643,7 @@ impl AppModule for AppStoreModule {
+         register_policy_runtime_features();
+         octoscript_widgets::design::script_mod(vm);
+         octoscript_widgets::kit::script_mod(vm);
++        octoscript_widgets::drawer::script_mod(vm);
+         script_mod(vm);
+         register_card_vocabulary();
+     }
+diff --git a/crates/card-host/src/host.rs b/crates/card-host/src/host.rs
+index e4dd568..11cd265 100644
+--- a/crates/card-host/src/host.rs
++++ b/crates/card-host/src/host.rs
+@@ -312,8 +312,12 @@ fn register_card_vocabulary() {
+     fn kit(vm: &mut ScriptVm) {
+         octoscript_widgets::kit::script_mod(vm);
+     }
++    fn drawer(vm: &mut ScriptVm) {
++        octoscript_widgets::drawer::script_mod(vm);
++    }
+     register_splash_isolate_mod(design);
+     register_splash_isolate_mod(kit);
++    register_splash_isolate_mod(drawer);
+     register_splash_isolate_mod(makepad_widgets::splash::register_agent_module);
+ }
+ 
+@@ -420,6 +424,7 @@ impl AppMain for App {
+         makepad_widgets::script_mod(vm);
+         octoscript_widgets::design::script_mod(vm);
+         octoscript_widgets::kit::script_mod(vm);
++        octoscript_widgets::drawer::script_mod(vm);
+         self::script_mod(vm)
+     }
+ 

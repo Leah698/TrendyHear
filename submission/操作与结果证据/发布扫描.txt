@@ -1,5 +1,0 @@
-hub scan ./bundle --packet build/review.json
-wrote the review packet to build/review.json
-no --reviewer given; the packet holds 8 questions for one
-
-书面回答见：build/REVIEW-ANSWERS-0.4.3.md

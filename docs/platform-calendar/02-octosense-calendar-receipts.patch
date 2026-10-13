@@ -1,0 +1,194 @@
+diff --git a/crates/app-peers/README.md b/crates/app-peers/README.md
+index 104a723f..dd34b381 100644
+--- a/crates/app-peers/README.md
++++ b/crates/app-peers/README.md
+@@ -176,3 +176,5 @@ cover incoming approval provenance, unchanged request data, all three entry
+ points, account clearing and updates without peer recreation. The hosted
+ service tests cover the public method set after opt-in and host consent;
+ unknown methods and apps with no agent offer remain refused.
++
++Calendar action receipts: a completed person-context turn also returns bounded `calendar_receipts` from successful host replies to `calendar.events` and `calendar.add_event`. Receipts are restricted to the same open context, account generation and turn. They are not parsed from assistant text, do not authorize a call, and omit other tools, errors and oversized results. Apps must match the exact requested event against a readback receipt before showing saved status.
+diff --git a/crates/app-peers/README.zh-CN.md b/crates/app-peers/README.zh-CN.md
+index 1ec1f000..723bc5b9 100644
+--- a/crates/app-peers/README.zh-CN.md
++++ b/crates/app-peers/README.zh-CN.md
+@@ -70,3 +70,5 @@ OCTOS_APP_PEERS_TEST_KERNEL=/path/to/octos cargo test --locked -p octosense-app-
+ ```
+ 
+ 未提供内核时，可选测试跳过真实内核验证。Shell 不接受缺少 host-owned peer 协议的内核，也不会偷偷改用普通共享记忆 session。
++
++Calendar 执行回执：用户上下文的已完成轮次会额外返回有大小限制的 `calendar_receipts`，只包含 `calendar.events` 和 `calendar.add_event` 的成功宿主回复。回执限定于同一仍打开的上下文、账户代次与轮次，不从模型文本解析，也不授予调用权限；其他工具、错误和过大结果不返回。应用必须用读回回执核对原始日程字段后才能显示保存成功。
+diff --git a/crates/app-peers/src/broker.rs b/crates/app-peers/src/broker.rs
+index a063ba02..8bff6885 100644
+--- a/crates/app-peers/src/broker.rs
++++ b/crates/app-peers/src/broker.rs
+@@ -272,6 +272,8 @@ struct TurnWaiter {
+     segment: String,
+     /// Segments whose saved text arrived: later deltas for them are stale.
+     persisted: BTreeSet<String>,
++    /// Successful Calendar outcomes from the host, never from model text.
++    calendar_receipts: Vec<Value>,
+     done: Option<oneshot::Sender<Result<String, String>>>,
+ }
+ 
+@@ -282,6 +284,7 @@ impl TurnWaiter {
+             text: String::new(),
+             segment: String::new(),
+             persisted: BTreeSet::new(),
++            calendar_receipts: Vec::new(),
+             done: Some(done),
+         }
+     }
+@@ -337,6 +340,16 @@ impl TurnWaiter {
+     }
+ }
+ 
++// Only return outcomes of the two Calendar tools already authorized by the
++// relay. Bound result size and count; other tools and errors disclose nothing.
++fn calendar_receipt(owner: &str, name: &str, args: &Value, fields: &Value) -> Option<Value> {
++    if owner != "os.calendar" || !matches!(name, "calendar.events" | "calendar.add_event")
++        || fields["ok"] != true || fields.get("status").is_some() { return None; }
++    let data = fields.get("data")?;
++    let receipt = json!({"tool": name, "args": args, "data": data});
++    (receipt.to_string().len() <= 32_000).then_some(receipt)
++}
++
+ struct Route {
+     generation: u64,
+     context: Weak<ContextInner>,
+@@ -1837,8 +1850,25 @@ impl Inner {
+         });
+         let occurrence = call.occurrence();
+         let call_id = call.call_id.clone();
++        let receipt_call = call.clone();
+         ToolReply::new(call.call_id.clone(), move |fields: Value| {
+             let Some(inner) = weak.upgrade() else { return };
++            if let Some(receipt) = calendar_receipt(&receipt_call.app, &receipt_call.name, &receipt_call.args, &fields) {
++                let context = {
++                    let st = inner.lock();
++                    st.contexts.iter().filter_map(Weak::upgrade).find(|c|
++                        Some(&c.context_id) == receipt_call.context_id.as_ref()
++                        && c.open.load(Ordering::Acquire) && c.generation == st.generation)
++                };
++                if let Some(context) = context {
++                    let mut turn = context.turn.lock().unwrap_or_else(|e| e.into_inner());
++                    if let Some(waiter) = turn.as_mut().filter(|w| w.turn_id == receipt_call.turn_id) {
++                        if waiter.calendar_receipts.len() < 8 && !waiter.calendar_receipts.contains(&receipt) {
++                            waiter.calendar_receipts.push(receipt);
++                        }
++                    }
++                }
++            }
+             let mut params = base.clone();
+             for (k, v) in fields.as_object().into_iter().flatten() {
+                 params[k] = v.clone();
+@@ -3108,15 +3138,15 @@ impl ContextInner {
+                 }
+             },
+         };
+-        {
++        let calendar_receipts = {
+             let mut turn = self.turn.lock().unwrap_or_else(|e| e.into_inner());
+             if turn.as_ref().is_some_and(|w| w.turn_id == turn_id) {
+-                turn.take();
+-            }
+-        }
++                turn.take().map(|w| w.calendar_receipts).unwrap_or_default()
++            } else { Vec::new() }
++        };
+         let streamed = outcome?;
+         let text = saved_answer(inner, session, &turn_id, streamed).await;
+-        Ok(json!({"turn_id": turn_id, "text": text, "speaker": speaker.to_json(), "lane": LANE_PERSON}))
++        Ok(json!({"turn_id": turn_id, "text": text, "speaker": speaker.to_json(), "lane": LANE_PERSON, "calendar_receipts": calendar_receipts}))
+     }
+ 
+     /// Stop on the app's conversation: BOTH lanes' running turns, the
+@@ -3605,3 +3635,21 @@ mod tests {
+         assert_eq!(account_tag("@a:x"), "82c93996fd659248");
+     }
+ }
++
++#[cfg(test)]
++mod calendar_receipt_tests {
++    use super::*;
++    #[test]
++    fn calendar_receipts_only_accept_bounded_host_success() {
++        let args = json!({"title":"Deadline", "start":"2026-10-15", "request_id":"test-1"});
++        let success = json!({"ok":true,"data":{"id":"event-1","start":"2026-10-15"}});
++        let receipt = calendar_receipt("os.calendar","calendar.add_event",&args,&success).unwrap();
++        assert_eq!(receipt["data"]["id"], "event-1");
++        assert_eq!(receipt["args"]["request_id"], "test-1");
++        assert!(calendar_receipt("os.mail","calendar.add_event",&args,&success).is_none());
++        assert!(calendar_receipt("os.calendar","calendar.remove_event",&args,&success).is_none());
++        assert!(calendar_receipt("os.calendar","calendar.add_event",&args,&json!({"ok":false})).is_none());
++        assert!(calendar_receipt("os.calendar","calendar.add_event",&args,&json!({"ok":true,"status":"waiting","data":{}})).is_none());
++        assert!(calendar_receipt("os.calendar","calendar.events",&args,&json!({"ok":true,"data":{"events":["x".repeat(32_000)]}})).is_none());
++    }
++}
+diff --git a/crates/shell/src/host_tools/tests.rs b/crates/shell/src/host_tools/tests.rs
+index 13cd398a..94f78514 100644
+--- a/crates/shell/src/host_tools/tests.rs
++++ b/crates/shell/src/host_tools/tests.rs
+@@ -294,6 +294,62 @@ fn admitted_mail_calendar_grants_route_to_the_real_calendar_store() {
+     let _ = std::fs::remove_dir_all(mail_dir);
+ }
+ 
++/// Exercises the contained-app relay and Calendar's real local store.
++/// Admission is a fixture here; this is not a signed install or live LLM test.
++#[cfg(any(feature = "app-hub", native_mobile))]
++#[test]
++fn contained_calendar_action_requires_consent_and_survives_exact_retry() {
++    use super::script_apps::{self, HostServiceExecutor};
++    let folder = script_apps::tests::stamped_bundle("calendar", "contained-calendar-action", |_, _| {});
++    let calendar = script_apps::from_bundle(&folder).unwrap();
++    let root = folder.join("test-host");
++    octosense_calendar_service::register();
++    let mut relay = Relay::default();
++    relay.catalog.declare("os.calendar", calendar.tools);
++    relay.set_executor("os.calendar", Some(Arc::new(HostServiceExecutor {
++        app: "os.calendar".into(), tools: calendar.host_service_tools,
++        methods: calendar.host_methods, families: calendar.families, host_dir: root.clone(),
++    })));
++    let caller = "org.example.motion";
++    let mut world = World::new(FixedDevMode::off());
++    let invoke = |relay: &mut Relay, world: &mut World, id: &str, name: &str, args: Value| {
++        let mut request = call(id, name, &format!("card.{caller}"));
++        request.app = "os.calendar".into(); request.args = args;
++        let (r, sent) = reply(id);
++        relay.handle(Event::Call { call: request, reply: r }, world);
++        for _ in 0..100 {
++            script_apps::poll();
++            if !sent.lock().unwrap().is_empty() { break; }
++            std::thread::sleep(std::time::Duration::from_millis(10));
++        }
++        let result = sent.lock().unwrap().first().cloned().expect("bounded Calendar response");
++        result
++    };
++    let args = json!({"title":"Fictional opportunity deadline", "start":"2026-10-15",
++        "notes":"Fixture source only", "request_id":"contained-opportunity-1"});
++    assert_eq!(invoke(&mut relay, &mut world, "ungranted", "calendar.add_event", args.clone())["error"]["kind"], "not_granted");
++    assert!(octosense_calendar_service::load(&root).is_empty());
++    for tool in ["calendar.events", "calendar.add_event"] { relay.catalog.grant(caller, "os.calendar", tool); }
++    world.consent = false;
++    assert_eq!(invoke(&mut relay, &mut world, "no-consent", "calendar.add_event", args.clone())["error"]["kind"], "consent_pending");
++    assert!(octosense_calendar_service::load(&root).is_empty());
++    world.consent = true;
++    let saved = invoke(&mut relay, &mut world, "save", "calendar.add_event", args.clone());
++    assert_eq!(saved["ok"], true);
++    let retry = invoke(&mut relay, &mut world, "retry", "calendar.add_event", args.clone());
++    assert_eq!(retry["data"]["id"], saved["data"]["id"]);
++    let read = invoke(&mut relay, &mut world, "read-back", "calendar.events", json!({"from":"2026-10-15", "to":"2026-10-15", "limit":10}));
++    assert_eq!(read["ok"], true);
++    assert_eq!(read["data"]["events"].as_array().unwrap().len(), 1);
++    assert_eq!(read["data"]["events"][0]["id"], saved["data"]["id"]);
++    assert_eq!(read["data"]["events"][0]["request_id"], args["request_id"]);
++    assert_eq!(octosense_calendar_service::load(&root).len(), 1);
++    world.unavailable.insert(caller.into());
++    assert_eq!(invoke(&mut relay, &mut world, "withdrawn", "calendar.add_event", args)["error"]["kind"], "app_unavailable");
++    assert!(!relay.catalog.may_call(caller, "os.calendar", "calendar.remove_event", false));
++    std::fs::remove_dir_all(folder).unwrap();
++}
++
+ #[test]
+ fn another_apps_agent_needs_a_grant_and_the_system_agent_its_own() {
+     let mut relay = Relay::default();

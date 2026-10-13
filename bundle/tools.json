@@ -1,0 +1,239 @@
+{
+  "schema": 1,
+  "tools": [
+    {
+      "name": "trendyhear.goal_propose",
+      "description": "Submit a growth goal only after the person has reviewed the conversational summary and explicitly confirmed it in the TrendyHear conversation. TrendyHear validates the proposal and opens its own confirmation card; calling this tool does not save the goal.",
+      "implemented_by": "app",
+      "risk": "act",
+      "background": false,
+      "shareable": true,
+      "private_data": false,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "statement",
+          "domains",
+          "goal_types",
+          "start_date",
+          "end_date",
+          "geography",
+          "opportunity_types",
+          "information_preferences",
+          "interpretation",
+          "daily_time"
+        ],
+        "properties": {
+          "statement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
+          },
+          "domains": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 24,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "goal_types": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "start_date": {
+            "type": "string",
+            "maxLength": 10
+          },
+          "end_date": {
+            "type": "string",
+            "maxLength": 10
+          },
+          "geography": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "opportunity_types": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          "information_preferences": {
+            "type": "array",
+            "maxItems": 6,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "interpretation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1200
+          },
+          "daily_time": {
+            "type": "string",
+            "maxLength": 5
+          },
+          "personal_context": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field",
+                "value",
+                "evidence"
+              ],
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "current_stage",
+                    "constraints",
+                    "resources"
+                  ]
+                },
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                },
+                "evidence": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                }
+              }
+            }
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "proposal_id"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "awaiting_user_confirmation"
+            ]
+          },
+          "proposal_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    {
+      "name": "trendyhear.preference_propose",
+      "description": "Stage a reading-preference change, one-time query, pause, resume, or partial preference edit after the person explicitly confirms the conversational summary. TrendyHear shows its own confirmation card. For a partial change, preserve every preference the person did not ask to change. Calling this tool does not save or execute the change.",
+      "implemented_by": "app",
+      "risk": "act",
+      "background": false,
+      "shareable": true,
+      "private_data": false,
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "preferences"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "subscribe",
+              "query",
+              "pause",
+              "resume"
+            ]
+          },
+          "preferences": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topics",
+              "purpose",
+              "time",
+              "enabled",
+              "interpretation"
+            ],
+            "properties": {
+              "topics": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 24,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              },
+              "purpose": {
+                "type": "string",
+                "maxLength": 240
+              },
+              "time": {
+                "type": "string",
+                "maxLength": 5
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "interpretation": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 600
+              }
+            }
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "status",
+          "proposal_id"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "awaiting_user_confirmation"
+            ]
+          },
+          "proposal_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,316 @@
+diff --git a/crates/octoscript-widgets/src/lib.rs b/crates/octoscript-widgets/src/lib.rs
+index 9c29942..c9ecdc3 100644
+--- a/crates/octoscript-widgets/src/lib.rs
++++ b/crates/octoscript-widgets/src/lib.rs
+@@ -26,6 +26,7 @@
+ use makepad_widgets::*;
+ 
+ pub mod tap;
++pub mod drawer;
+ pub mod design;
+ pub mod kit;
+ pub mod progress;
+@@ -36,6 +37,7 @@ pub fn widgets_mod(vm: &mut ScriptVm) {
+     makepad_widgets::widgets_mod(vm);
+     self::script_mod(vm);
+     self::tap::script_mod(vm);
++    self::drawer::script_mod(vm);
+ }
+ 
+ script_mod! {
+diff --git a/crates/octoscript-widgets/src/drawer.rs b/crates/octoscript-widgets/src/drawer.rs
+new file mode 100644
+index 0000000..41c098b
+--- /dev/null
++++ b/crates/octoscript-widgets/src/drawer.rs
+@@ -0,0 +1,290 @@
++//! A reusable, zero-layout navigation drawer for OctoScript applications.
++//!
++//! `SlidePanel` animates a child inside its parent's layout. A mobile app
++//! drawer has different semantics: it must claim no space, paint above the
++//! mounted app, own Back/Escape while open, and dismiss from the scrim. This
++//! widget follows the same overlay boundary as Makepad's `Modal`, while adding
++//! a sliding edge panel and a small selection API for script applications.
++
++use makepad_widgets::animator::{Animator, AnimatorAction, AnimatorImpl, Play};
++use makepad_widgets::makepad_script::ScriptFnRef;
++use makepad_widgets::modal::ModalBounds;
++use makepad_widgets::*;
++
++script_mod! {
++    use mod.prelude.widgets_internal.*
++    use mod.widgets.*
++
++    mod.widgets.NavigationDrawerSide = #(NavigationDrawerSide::script_api(vm))
++    mod.widgets.splat(mod.widgets.NavigationDrawerSide)
++    mod.widgets.NavigationDrawerBase = #(NavigationDrawer::register_widget(vm))
++    mod.widgets.NavigationDrawer = set_type_default() do mod.widgets.NavigationDrawerBase{
++        drawer_width: 292.0
++        side: mod.widgets.NavigationDrawerSide.Left
++        can_dismiss: true
++        animator: Animator{
++            active: {
++                default: @off
++                on: AnimatorState{
++                    redraw: true
++                    from: {all: Forward {duration: 0.28}}
++                    ease: OutCubic
++                    apply: {active: 0.0}
++                }
++                off: AnimatorState{
++                    redraw: true
++                    from: {all: Forward {duration: 0.22}}
++                    ease: InCubic
++                    apply: {active: 1.0}
++                }
++            }
++        }
++        flow: Overlay
++        draw_bg +: {pixel: fn(){return vec4(0. 0. 0. 0.0)}}
++        scrim := SolidView{
++            width: Fill height: Fill
++            draw_bg.color: #20312C70
++        }
++        content := SolidView{
++            width: Fill height: Fill flow: Down
++            draw_bg.color: #F6F7F2
++        }
++    }
++    mod.prelude.widgets.NavigationDrawer = mod.widgets.NavigationDrawer
++    mod.prelude.widgets.NavigationDrawerSide = mod.widgets.NavigationDrawerSide
++}
++
++#[derive(Copy, Clone, Debug, Default, Script, ScriptHook)]
++pub enum NavigationDrawerSide {
++    #[pick]
++    #[default]
++    Left,
++    Right,
++}
++
++#[derive(Clone, Debug, Default)]
++pub enum NavigationDrawerAction {
++    Dismissed,
++    Selected(usize),
++    #[default]
++    None,
++}
++
++#[derive(Script, Widget, Animator)]
++pub struct NavigationDrawer {
++    #[source]
++    source: ScriptObjectRef,
++    #[deref]
++    view: View,
++    #[apply_default]
++    animator: Animator,
++    #[live]
++    active: f64,
++    #[live(292.0)]
++    drawer_width: f64,
++    #[live]
++    side: NavigationDrawerSide,
++    #[live(true)]
++    can_dismiss: bool,
++    #[live]
++    on_select: ScriptFnRef,
++    #[live]
++    selected_index: f64,
++    #[live]
++    draw_bg: DrawQuad,
++    #[rust]
++    draw_list: Option<DrawList2d>,
++    #[rust]
++    is_open: bool,
++    #[rust]
++    cancel_scope: Option<CancelScope>,
++}
++
++impl ScriptHook for NavigationDrawer {
++    fn on_after_new(&mut self, vm: &mut ScriptVm) {
++        self.draw_list = Some(DrawList2d::script_new(vm));
++    }
++
++    fn on_after_apply(
++        &mut self,
++        vm: &mut ScriptVm,
++        _apply: &Apply,
++        _scope: &mut Scope,
++        _value: ScriptValue,
++    ) {
++        // The overlay paints in its own draw list and must never consume a
++        // share of a parent Fill layout, including while it is closed.
++        self.view.walk = Walk::empty();
++        vm.with_cx_mut(|cx| cx.redraw_all());
++    }
++}
++
++impl Widget for NavigationDrawer {
++    fn script_call(
++        &mut self,
++        vm: &mut ScriptVm,
++        method: LiveId,
++        args: ScriptValue,
++    ) -> ScriptAsyncResult {
++        if method == live_id!(open) {
++            vm.with_cx_mut(|cx| self.open(cx));
++            return ScriptAsyncResult::Return(NIL);
++        }
++        if method == live_id!(close) {
++            vm.with_cx_mut(|cx| self.close(cx));
++            return ScriptAsyncResult::Return(NIL);
++        }
++        if method == live_id!(toggle) {
++            vm.with_cx_mut(|cx| self.toggle(cx));
++            return ScriptAsyncResult::Return(NIL);
++        }
++        if method == live_id!(is_open) {
++            return ScriptAsyncResult::Return(ScriptValue::from_bool(self.is_open));
++        }
++        if method == live_id!(is_animating) {
++            return ScriptAsyncResult::Return(ScriptValue::from_bool(
++                self.animator.is_track_animating(id!(active)),
++            ));
++        }
++        if method == live_id!(selected_index) {
++            return ScriptAsyncResult::Return(ScriptValue::from_f64(self.selected_index));
++        }
++        if method == live_id!(select) {
++            if let Some(obj) = args.as_object() {
++                let trap = vm.bx.threads.cur().trap.pass();
++                let value = vm.bx.heap.vec_value(obj, 0, trap);
++                if let Some(index) = value.as_f64() {
++                    vm.with_cx_mut(|cx| self.select(cx, index.max(0.0) as usize));
++                }
++            }
++            return ScriptAsyncResult::Return(NIL);
++        }
++        ScriptAsyncResult::MethodNotFound
++    }
++
++    fn handle_event(&mut self, cx: &mut Cx, event: &Event, scope: &mut Scope) {
++        if self.animator_handle_event(cx, event).must_redraw() {
++            self.redraw_overlay(cx);
++        }
++        if !self.is_open && !self.animator.is_track_animating(id!(active)) {
++            return;
++        }
++
++        let content = self.view.widget(cx, ids!(content));
++        content.handle_event(cx, event, scope);
++        let owns_cancel = self.cancel_scope.as_ref().is_some_and(|s| cx.owns_cancel(s));
++        let background_hit = event.hits(cx, self.draw_bg.area());
++        let outside_tap = matches!(background_hit, Hit::FingerUp(fe)
++            if !content.area().rect(cx).contains(fe.abs));
++        let escape = matches!(event, Event::KeyUp(key)
++            if key.key_code == KeyCode::Escape && owns_cancel);
++        if self.can_dismiss && (outside_tap || escape || (owns_cancel && event.back_pressed())) {
++            cx.widget_action(self.widget_uid(), NavigationDrawerAction::Dismissed);
++            self.close(cx);
++        }
++    }
++
++    fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, _walk: Walk) -> DrawStep {
++        let bounds = cx.global::<ModalBounds>().0;
++        let parent_transform = bounds.and_then(|_| {
++            cx.draw_list_stack
++                .last()
++                .map(|id| cx.draw_lists[*id].draw_list_uniforms.view_transform)
++        });
++        let draw_list = self.draw_list.as_mut().unwrap();
++        draw_list.begin_overlay_reuse(cx);
++
++        let rect = bounds.unwrap_or(Rect {
++            pos: dvec2(0.0, 0.0),
++            size: cx.current_pass_size(),
++        });
++        let root_size = match bounds {
++            None => cx.current_pass_size(),
++            Some(r) => {
++                let pass = cx.current_pass_size();
++                dvec2(pass.x.max(r.pos.x + r.size.x), pass.y.max(r.pos.y + r.size.y))
++            }
++        };
++        cx.begin_root_turtle(root_size, Layout::default());
++        self.draw_bg.begin(cx, Walk::abs_rect(rect), self.view.layout);
++
++        if self.is_open || self.animator.is_track_animating(id!(active)) {
++            let scrim = self.view.widget(cx, ids!(scrim));
++            let _ = scrim.draw_walk(cx, scope, Walk::abs_rect(rect));
++
++            let width = self.drawer_width.max(0.0).min(rect.size.x);
++            let x = match self.side {
++                NavigationDrawerSide::Left => rect.pos.x - width * self.active,
++                NavigationDrawerSide::Right => rect.pos.x + rect.size.x - width + width * self.active,
++            };
++            let content = self.view.widget(cx, ids!(content));
++            let _ = content.draw_walk(
++                cx,
++                scope,
++                Walk::fixed(width, rect.size.y).with_abs_pos(dvec2(x, rect.pos.y)),
++            );
++        }
++
++        self.draw_bg.end(cx);
++        cx.end_pass_sized_turtle();
++        self.draw_list.as_mut().unwrap().end(cx);
++        if let Some(transform) = parent_transform {
++            self.draw_list.as_ref().unwrap().set_view_transform(cx, &transform);
++        }
++        if self.is_open {
++            let content_area = self.view.widget(cx, ids!(content)).area();
++            cx.block_scrolling_except_within(content_area);
++        }
++        DrawStep::done()
++    }
++}
++
++impl NavigationDrawer {
++    fn redraw_overlay(&self, cx: &mut Cx) {
++        if let Some(draw_list) = &self.draw_list {
++            draw_list.redraw(cx);
++        }
++        self.draw_bg.redraw(cx);
++    }
++
++    pub fn open(&mut self, cx: &mut Cx) {
++        if !self.is_open {
++            self.is_open = true;
++            self.cancel_scope = Some(cx.begin_cancel_scope());
++        }
++        self.animator_play(cx, ids!(active.on));
++        self.redraw_overlay(cx);
++    }
++
++    pub fn close(&mut self, cx: &mut Cx) {
++        if !self.is_open {
++            return;
++        }
++        self.is_open = false;
++        if let Some(scope) = self.cancel_scope.take() {
++            cx.end_cancel_scope(scope);
++        }
++        self.animator_play(cx, ids!(active.off));
++        cx.revert_key_focus();
++        cx.unblock_scrolling();
++        self.redraw_overlay(cx);
++    }
++
++    pub fn toggle(&mut self, cx: &mut Cx) {
++        if self.is_open { self.close(cx) } else { self.open(cx) }
++    }
++
++    pub fn select(&mut self, cx: &mut Cx, index: usize) {
++        self.selected_index = index as f64;
++        cx.widget_action(self.widget_uid(), NavigationDrawerAction::Selected(index));
++        cx.widget_to_script_call(
++            self.widget_uid(),
++            NIL,
++            self.source.clone(),
++            self.on_select.clone(),
++            &[ScriptValue::from_f64(index as f64)],
++        );
++        self.redraw_overlay(cx);
++    }
++}
++

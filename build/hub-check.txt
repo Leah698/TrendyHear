@@ -1,3 +1,0 @@
-news.tingjian-native 0.3.0 — PASSED
-  [warning] publisher-signature: unsigned: accountability rests on the hub alone
-  grants: capabilities {"model", "net", "storage"}, hosts {"www.chinanews.com.cn"}, storage 16777216 bytes, agent none

@@ -1,0 +1,125 @@
+fn run_090_checks(){
+ fs.mkdir(DATA)
+ let checks={} let examples=[]
+ let malformed_source={name:"Malformed fixture",url:"https://hackalendar.com/api/events",prefix:"https://hackalendar.com/",format:"hackalendar",quota:2}
+ let malformed_rows=try {parse_opportunity_source(malformed_source,{status_code:200,body:"{}"})} catch {[]}
+ checks.malformed_source_isolated=malformed_rows.len()==0
+ state.agent_messages=[{role:"user",text:"第一轮"},{role:"assistant",text:"第二轮"},{role:"user",text:"第三轮"},{role:"assistant",text:"最新回复"}]
+ let visible=recent_agent_messages()
+checks.latest_advisor_reply_visible=visible.len()==2 && visible[1].text=="最新回复" && visible[0].text=="第三轮"
+ state.goal.status="active" state.goal.statement="学习AI Agent开发，积累项目经验" state.goal.domains=["科技"] state.goal.revision=8
+ state.agent_messages=[{role:"user",text:"我已有AI应用原型，但每周只能投入5小时。"}]
+ let ctx=[{field:"current_stage",value:"已有AI应用原型",evidence:"已有AI应用原型"}]
+ checks.context_from_user=valid_context(ctx)
+ checks.invented_context_rejected=!valid_context([{field:"current_stage",value:"资深工程师",evidence:"资深工程师"}])
+ state.goal.personal_context=ctx
+ let body="Demo Hackathon. Registration is open. Individuals welcome. Online event. Submit a runnable Demo. Registration deadline 2030-10-15."
+ let fact={identity_quote:"Demo Hackathon",registration:{value:"open",quote:"Registration is open"},participation:{value:"individual",quote:"Individuals welcome"},format:{value:"online",quote:"Online event"},work_requirements:{value:"Submit a runnable Demo",quote:"Submit a runnable Demo"},project_policy:{value:"unknown",quote:""},registration_deadline:{value:"2030-10-15",quote:"Registration deadline 2030-10-15"},submission_deadline:{value:"unknown",quote:""}}
+ let o={title:"演示活动 · Demo Hackathon",source:"演示数据",category:"比赛",link:"https://fossunited.org/events/fixture-090",summary_source:body,evidence:"Demo Hackathon",reason:"用于测试个人判断与日程。",calendar_kind:"deadline",calendar_start_date:"2030-10-15",calendar_end_date:"",calendar_evidence:"Registration deadline 2030-10-15",location:"Online",deadline:"Registration deadline 2030-10-15",event_time:"2030-10-15",saved:false,published:time_now(),goal_revision:8,run_id:1,calendar_event_id:""}
+ o.official=checked_facts(fact,body,o)
+ checks.partial_official_accepted=current_official(o)
+ checks.missing_rules_unknown=fact_of(o,"project_policy").status=="unknown"
+ checks.official_quote_verified=fact_of(o,"work_requirements").status=="verified"
+ checks.valid_calendar_evidence=calendar_eligible(o)
+ let bad=copy(fact) bad.format.quote="Made up location"
+ checks.invented_quote_becomes_unknown=checked_facts(bad,body,o).facts.format.status=="unknown"
+ bad=copy(fact) bad.registration_deadline.value="2031-10-15"
+ checks.wrong_normalized_date_unknown=checked_facts(bad,body,o).facts.registration_deadline.status=="unknown"
+ checks.date_missing_year_rejected=!date_in_evidence("2030-10-15","October 15")
+ checks.date_english_verified=date_in_evidence("2030-10-15","15 October 2030")
+ checks.date_chinese_verified=date_in_evidence("2030-10-15","2030年10月15日")
+ let candidate=copy(o) candidate.link="https://hackalendar.com/e/fixture-090" candidate=unverified_opportunity(candidate)
+ checks.aggregator_preserved_unverified=opportunity_current(candidate) && candidate.official.status=="unverified"
+ checks.candidate_name_unverified=fact_of(candidate,"event_name").status=="unverified"
+ checks.unverified_cannot_schedule=!calendar_eligible(candidate)
+ let closed=copy(o) closed.official.facts.registration={value:"closed",status:"verified",quote:"Registration closed"}
+ checks.closed_hidden=!opportunity_current(closed)
+ let active_phase=copy(closed) active_phase.official.facts.submission_deadline={value:"2030-10-31",status:"verified",quote:"Final submission deadline 2030-10-31"}
+ checks.future_submission_phase_preserved=opportunity_current(active_phase)
+ let expired=copy(o) expired.official.checked_at=time_now()-90000
+ checks.expired_cache_hidden=!opportunity_current(expired)
+ let old=copy(o) old.official.schema=1
+ checks.old_evidence_requires_refresh=!opportunity_current(old)
+ checks.spoof_host_rejected=!official_url("https://fossunited.org.evil.test/a")
+ checks.hackalendar_event_supported=official_url("https://hackalendar.com/e/fixture-090")
+ checks.hackalendar_spoof_rejected=!official_url("https://hackalendar.com.evil.test/e/fixture-090")
+ checks.conference_api_supported=official_url("https://conferencely.org/api/v1/public/conferences/fixture-090")
+ checks.grant_page_supported=official_url("https://grants.watch/programs/fixture-090")
+ checks.job_page_supported=official_url("https://jobicy.com/jobs/123-fixture")
+ let a={index:0,decision:"verify_first",goal_relevance:"积累应用开发实践经验",personal_context_used:[ctx[0].value],personal_advantage:"已有原型可能降低准备成本",main_constraint:"尚未确认项目复用规则",constraint_status:"unknown",constraint_evidence:"",unknown_fields:["project_policy"],analysis:"你已有AI应用原型，可能减少从零准备的工作。但活动是否允许复用项目尚未确认，不能把现有功能直接当成可提交的作品。",next_action:"先核对官方项目复用规则",evidence_refs:["personal.current_stage","official.work_requirements"]}
+ let rows=checked_personal_advice({items:[a]},[o])
+ checks.experienced_analysis_accepted=rows!=nil
+ if rows!=nil {examples.push({case:"已有项目（手工构造模型返回）",analysis:rows[0].suggestion,next_action:rows[0].next_action})}
+ let beginner=[{field:"current_stage",value:"刚开始学习开发",evidence:"刚开始学习开发"}]
+ state.goal.personal_context=beginner
+ let b=copy(a) b.personal_context_used=[beginner[0].value] b.personal_advantage="" b.analysis="活动要求可运行的Demo，而你刚开始学习开发。若需要从零完成，准备成本可能较高；在不了解最低交付范围前，不宜直接决定投入。" b.next_action="对照最低Demo要求列出尚未掌握的功能"
+ let br=checked_personal_advice({items:[b]},[o])
+ checks.beginner_analysis_accepted=br!=nil
+ if br!=nil {examples.push({case:"初学者（手工构造模型返回）",analysis:br[0].suggestion,next_action:br[0].next_action})}
+ checks.same_event_distinct_examples=a.analysis!=b.analysis && a.next_action!=b.next_action
+ checks.stale_personal_context_rejected=checked_personal_advice({items:[a]},[o])==nil
+ state.goal.personal_context=[]
+ let c=copy(a) c.personal_context_used=[] c.personal_advantage="" c.evidence_refs=["official.work_requirements"] c.analysis="活动要求提交可运行的Demo，能提供应用实践机会。若已有项目，可先核对复用规则；若从零开始，则需比较交付范围和可投入时间。" c.next_action="先确认最低Demo交付标准"
+ let cr=checked_personal_advice({items:[c]},[o])
+ checks.no_background_useful_analysis=cr!=nil
+ if cr!=nil {examples.push({case:"仅有目标（手工构造模型返回）",analysis:cr[0].suggestion,next_action:cr[0].next_action})}
+ bad=copy(c) bad.personal_advantage="已有项目能节省时间"
+ checks.invented_advantage_rejected=checked_personal_advice({items:[bad]},[o])==nil
+ let d=copy(c) d.evidence_refs=["source"] d.decision="insufficient_data" d.unknown_fields=["registration","eligibility"] d.main_constraint="尚未确认报名状态及资格" d.analysis="来源提供了活动线索，但报名状态和参与资格尚未确认，现阶段不足以判断是否值得投入准备时间。" d.next_action="先核对报名状态和参与资格"
+ checks.unknown_registration_analysis=checked_personal_advice({items:[d]},[candidate])!=nil
+ bad=copy(d) bad.decision="recommended"
+ checks.unknown_cannot_recommend=checked_personal_advice({items:[bad]},[candidate])==nil
+ bad=copy(d) bad.decision="not_recommended"
+ checks.unknown_not_ineligible=checked_personal_advice({items:[bad]},[candidate])==nil
+ bad=copy(c) bad.evidence_refs=["fake-source"]
+ checks.fake_reference_rejected=checked_personal_advice({items:[bad]},[o])==nil
+ bad=copy(c) bad.news_index=0 bad.news_evidence="Microsoft model"
+ checks.topic_only_news_association_rejected=checked_personal_advice({items:[bad]},[o])==nil
+ bad=copy(c) bad.next_action="建议进一步关注活动动态"
+ checks.empty_advice_rejected=checked_personal_advice({items:[bad]},[o])==nil
+ let rec=copy(c) rec.decision="recommended" rec.constraint_status="verified" rec.constraint_evidence="Submit a runnable Demo" rec.unknown_fields=[] rec.main_constraint="需要交付可运行的Demo"
+ checks.recommended_not_blocked_by_missing_profile=checked_personal_advice({items:[rec]},[o])!=nil
+ rec.decision="consider_later"
+ checks.consider_later_supported=checked_personal_advice({items:[rec]},[o])!=nil
+ rec.decision="not_recommended"
+ checks.verified_constraint_decision_supported=checked_personal_advice({items:[rec]},[o])!=nil
+ state.opportunities=[o,candidate] state.advice=[] advice_pending=2 advice_generation=5 opportunity_generation=7
+ receive_personal_advice(cr,5,8,7) receive_personal_advice(nil,5,8,7)
+ checks.failed_item_keeps_other_analysis=state.advice.len()==1 && state.advice_status=="partial"
+ let count=state.advice.len() receive_personal_advice(cr,4,8,7)
+ checks.stale_callback_ignored=state.advice.len()==count
+ state.opportunities=[o]
+ local_events=[] schedule_ok=true
+ local_schedule_review(0)
+ checks.confirmation_required=local_events.len()==0 && schedule_draft!=nil
+ confirm_local_schedule()
+ checks.calendar_saved_readback=local_events.len()==1 && fs.read(DATA+"schedule.json").parse_json().events.len()==1
+ local_schedule_review(0) confirm_local_schedule()
+ checks.calendar_deduplicated=local_events.len()==1
+ local_events=[] load_schedule() checks.calendar_reloaded=local_events.len()==1
+ let saved=copy(local_events)
+ let wrong=copy(o) wrong.calendar_start_date="2030-10-16" wrong.official=checked_facts(fact,body,wrong)
+ checks.invented_calendar_date_rejected=!calendar_eligible(wrong)
+ state.opportunities=[wrong] schedule_draft=nil local_schedule_review(0)
+ checks.invalid_date_no_draft=schedule_draft==nil
+ state.opportunities=[o] local_schedule_review(0) state.opportunities[0].calendar_evidence="changed" confirm_local_schedule()
+ checks.changed_evidence_cannot_commit=local_events.len()==1 && schedule_draft==nil
+ o.calendar_evidence="Registration deadline 2030-10-15"
+ state.opportunities=[o]
+ delete_local_schedule(local_events[0].id)
+ checks.calendar_delete_readback=local_events.len()==0 && fs.read(DATA+"schedule.json").parse_json().events.len()==0
+ state.favorites=[] favorite_opportunity(0) checks.favorite_works=state.favorites.len()==1
+ favorite_opportunity(0) checks.unfavorite_works=state.favorites.len()==0
+ checks.domain_combination_works=normalize_domains(["时政与教育领域"]).len()==2
+ checks.custom_domain_preserved=normalize_domains(["大模型与工具链"])[0]=="大模型与工具链"
+ let article={title:"Fixture news",link:"https://www.solidot.org/fixture",source:"Fixture",topic:"科技",summary:"fixture",published:time_now(),features:["fixture"],day:today(),read:false,feedback:0}
+ state.articles=[article] state.history=[] mark_read(0) mark_read(0)
+ checks.history_read_deduplicates=state.history.len()==1 && state.articles[0].read
+ favorite_news(0) checks.news_favorite_works=state.favorites.len()==1
+ reduce(0) checks.news_feedback_works=state.feedback.len()>0
+ fs.write("checks-090.json",checks.to_json()) fs.write("examples-090.json",examples.to_json())
+ state.goal.personal_context=ctx state.opportunities=[o] state.advice=rows state.advice_format=4 state.advice_status="ready" state.opportunity_status="ready" state.opportunity_detail="演示数据：用于 v0.9.0 界面验收，非真实活动。"
+ state.agent_messages=[{role:"user",text:"我比较关注科技与文化领域，最近想重点学习AI Agent的知识"}]
+ screen="opportunities" message="" show()
+}
+start_timeout(0.3,|| run_090_checks())

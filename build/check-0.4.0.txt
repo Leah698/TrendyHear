@@ -1,5 +1,0 @@
-octo: hub stamp -> da7ddd341cd880730041c21ded2c100dc0d8453c74066c9a0e7d09a9ee9440fd
-octo: <工具目录>/OctoSense-App-Hub/target/release/hub check <工程目录>/bundle --allow-unsigned
-skystream.trendyhear 0.4.0 — PASSED
-  [warning] publisher-signature: unsigned: accountability rests on the hub alone
-  grants: capabilities {"glance", "model", "net", "octos.session.history", "octos.session.open", "octos.turn.start", "storage"}, hosts {"www.chinanews.com.cn"}, storage 16777216 bytes, agent read-only

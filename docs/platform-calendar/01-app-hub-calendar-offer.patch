@@ -1,0 +1,54 @@
+diff --git a/crates/app-contract/src/policy.rs b/crates/app-contract/src/policy.rs
+index 3a1d321..67c5dba 100644
+--- a/crates/app-contract/src/policy.rs
++++ b/crates/app-contract/src/policy.rs
+@@ -63,6 +63,10 @@ impl Default for HostLimits {
+                 "storage.read",
+                 "storage.write",
+                 "card.render",
++                // Cross-app tools execute only through Calendar's relay.
++                // Offering is not a grant: manifests, consent and sharing apply.
++                "calendar.events",
++                "calendar.add_event",
+                 // The one kernel tool a contained app's agent may keep.
+                 "ask_user_question",
+             ]
+diff --git a/crates/app-policy/tests/admission.rs b/crates/app-policy/tests/admission.rs
+index 8ef3c02..23db0d5 100644
+--- a/crates/app-policy/tests/admission.rs
++++ b/crates/app-policy/tests/admission.rs
+@@ -569,3 +569,14 @@ fn old_runtime_or_missing_device_broker_never_activates_capture_side_effects() {
+     // Declaring a capability does not manufacture an implemented host ABI.
+     assert_eq!(old_runtime, public_runtime_capabilities(&[], true, false));
+ }
++
++#[test]
++fn calendar_offer_keeps_explicit_requests_and_narrow_scope() {
++    let policy = resolve(r#""agent":{"profile":"read-only","tools":["calendar.events","calendar.add_event"]}"#).unwrap();
++    assert_eq!(policy.agent.unwrap().tools, ["calendar.events".to_string(), "calendar.add_event".to_string()].into_iter().collect());
++    let unrequested = resolve(r#""agent":{"profile":"read-only","tools":[]}"#).unwrap();
++    assert!(unrequested.agent.unwrap().tools.is_empty());
++    for tool in ["calendar.remove_event", "calendar.update_event", "device_calendar.events.create"] {
++        assert!(resolve(&format!(r#""agent":{{"profile":"read-only","tools":[{tool:?}]}}"#)).is_err());
++    }
++}
+diff --git a/docs/PUBLISHING.md b/docs/PUBLISHING.md
+index 3fafc7b..3e2bc04 100644
+--- a/docs/PUBLISHING.md
++++ b/docs/PUBLISHING.md
+@@ -1830,3 +1830,5 @@ Submit by opening an issue, never by a pull request that edits `catalog.json`,
+ - **Withdrawal.** A withdrawn version stops running on each device's next
+   catalog fetch, and other versions keep working
+   ([After you submit](SUBMITTING.md#9-after-you-submit)).
++
++Store app agents may request `calendar.events` and `calendar.add_event` in `agent.tools`. In OctoSense these are shareable tools owned by `os.calendar`, executed through the app-agent relay after admission and user consent. This does not allow direct `host.request("calendar.*")`, device calendar access, edits or deletions. The reference card-host does not run agents.
+diff --git a/docs/PUBLISHING.zh-CN.md b/docs/PUBLISHING.zh-CN.md
+index 5d80231..4ab9f91 100644
+--- a/docs/PUBLISHING.zh-CN.md
++++ b/docs/PUBLISHING.zh-CN.md
+@@ -1247,3 +1247,5 @@ Release 的证明覆盖清单，包括 `integrity.bundle_blake3`。请遵守以
+ - **版本。** 已安装的应用运行该版本已审核的应用包，并遵守宿主当前的授权检查。较新的版本是用户可以选择安装的更新；在用户安装之前，打开的仍是已安装的版本。
+ - **完整性。** 宿主把已安装的应用包存放在应用的存储之外，因此应用无法写入它。每次启动时，宿主都会对照签名目录检查应用包：清单、摘要和发布者的证明。应用包一旦不再一致，宿主就会拒绝运行它，直到用户重新安装该应用。
+ - **撤回。** 每台设备下次拉取签名目录时，已撤回的版本就会停止运行，其他版本照常运行（[提交之后](SUBMITTING.zh-CN.md#9-提交之后)）。
++
++商店应用的 Agent 可在 `agent.tools` 中申请 `calendar.events` 与 `calendar.add_event`。OctoSense 通过应用 Agent 的跨应用调度执行这两个由 `os.calendar` 提供的可共享工具，仍要求应用准入与用户同意。这不允许直接调用 `host.request("calendar.*")`、访问设备日历、修改或删除日程。参考 card-host 不运行 Agent。

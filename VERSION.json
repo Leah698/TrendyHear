@@ -1,7 +1,7 @@
 {
   "app_id": "skystream.trendyhear",
-  "version": "0.4.4",
-  "public_repository": "https://github.com/shaokaiyuan0513-dotcom/TrendyHear",
-  "tag": "v0.4.4",
-  "submission": "awaiting publisher signature and App Hub installation"
+  "version": "0.9.0",
+  "public_repository": "https://github.com/Leah698/TrendyHear",
+  "tag": "v0.9.0",
+  "submission": "Final-round submission candidate for OctoSense rc.6: personalized action opportunities, verified in-app schedule, bounded source discovery, and compact responsive UI"
 }
